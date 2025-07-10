@@ -1,6 +1,10 @@
 <<<<<<< HEAD
 # Individual-Research
 =======
+
+
+npx -y @modelcontextprotocol/server-filesystem C:/Users/dabeen/Desktop/Individual-Research 
+
 # RANSAC 평면 추정 및 다듬기
 
 이 프로젝트는 PLY 포인트 클라우드 파일에서 RANSAC 알고리즘을 사용하여 평면을 추정하고 다듬는 Python 코드입니다.
