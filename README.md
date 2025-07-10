@@ -1,64 +1,128 @@
-<<<<<<< HEAD
-# Individual-Research
-=======
+npx -y @modelcontextprotocol/server-filesystem C:/Users/dabeen/Desktop/Individual-Research
 
+# 3D 포인트클라우드 기반 의미 있는 물체 추출 및 미니맵 생성 파이프라인
 
-npx -y @modelcontextprotocol/server-filesystem C:/Users/dabeen/Desktop/Individual-Research 
+## 개요
 
-# RANSAC 평면 추정 및 다듬기
+이 프로젝트는 3D 포인트클라우드(예: `.ply`, `.pcd`)에서  
+- **RANSAC**으로 바닥 검출  
+- **DBSCAN**으로 의미 있는 물체 분리  
+- **2D 윤곽선 추출 및 모폴로지 영상처리**  
+- **최종적으로 3D 미니맵(의미 있는 물체 + 바닥)**  
+을 자동으로 생성하는 파이프라인입니다.
 
-이 프로젝트는 PLY 포인트 클라우드 파일에서 RANSAC 알고리즘을 사용하여 평면을 추정하고 다듬는 Python 코드입니다.
+---
 
-## 기능
+## 폴더 구조 및 주요 입출력
 
-- PLY 파일 로드 및 기본 정보 출력
-- RANSAC을 사용한 단일 평면 추정
-- 여러 평면의 순차적 추출
-- 결과 시각화 (Open3D 뷰어)
-- 추출된 평면들을 개별 PLY 파일로 저장
-- 평면 모델 정보를 텍스트 파일로 저장
+```
+input/
+  └─ 3BP_CS_model_cut_180.ply, 3BP_ascii.pcd 등 (입력 포인트클라우드)
+output/
+  ├─ ransac/
+  │    ├─ floor.pcd         # 바닥만 추출
+  │    └─ non_floor.pcd     # 바닥 제외 나머지
+  ├─ outline/
+  │    ├─ binary.png        # 2D 투영 이진 이미지
+  │    ├─ contours.png      # 2D 윤곽선 시각화
+  │    └─ pixel_to_points.pkl # 2D-3D 매핑
+  ├─ morph/
+  │    ├─ eroded.png, dilated.png, morph_smoothed.png # 모폴로지 처리 결과
+  └─ pcd/
+       ├─ final_result.pcd  # 의미 있는 물체만 남은 3D 결과
+       └─ with_floor.pcd    # 바닥 포함 최종 3D 결과
+```
+
+---
 
 ## 설치
-
-필요한 패키지들을 설치합니다:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 사용법
+필요 패키지:  
+- open3d
+- numpy
+- opencv-python
+- scikit-learn
+- matplotlib
 
-1. `3BP_CS_model_cut_180.ply` 파일이 현재 디렉토리에 있는지 확인
-2. 다음 명령어로 코드 실행:
+---
+
+## 전체 파이프라인 요약
+
+### 1. 바닥/비바닥 분리 (RANSAC 등)
+- (예시) `ransac.py` 또는 별도 코드로 바닥/비바닥 분리
+- 결과: `output/ransac/floor.pcd`, `output/ransac/non_floor.pcd`
+
+### 2. 2D 윤곽선 추출 및 DBSCAN 클러스터링
 
 ```bash
-python plane_refinement.py
+python outline.py
+```
+- 입력: `output/ransac/non_floor.pcd`
+- 출력: `output/outline/binary.png`, `output/outline/contours.png`, `output/outline/pixel_to_points.pkl`
+
+### 3. 모폴로지 영상처리
+
+```bash
+python morph.py
+```
+- 입력: `output/outline/binary.png`
+- 출력: `output/morph/morph_smoothed.png` 등
+
+### 4. 2D → 3D 포인트클라우드 복원
+
+```bash
+python morph_to_pcd.py
+```
+- 입력: `output/morph/morph_smoothed.png`
+- 출력: `output/pcd/final_result.pcd`  
+  (의미 있는 물체만 남은 3D 포인트클라우드, 파란색)
+
+### 5. 바닥면과 합치기 (선택)
+
+```python
+import open3d as o3d
+import numpy as np
+
+obj = o3d.io.read_point_cloud("output/pcd/final_result.pcd")
+floor = o3d.io.read_point_cloud("output/ransac/floor.pcd")
+merged = o3d.geometry.PointCloud()
+merged.points = o3d.utility.Vector3dVector(np.vstack((np.asarray(obj.points), np.asarray(floor.points))))
+# (필요시 색상도 합치기)
+o3d.io.write_point_cloud("output/pcd/with_floor.pcd", merged)
 ```
 
-## 주요 매개변수
+---
 
-- `distance_threshold`: 평면으로부터의 최대 거리 (기본값: 0.01)
-- `ransac_n`: RANSAC에 사용할 포인트 수 (기본값: 3)
-- `num_iterations`: RANSAC 반복 횟수 (기본값: 1000)
-- `num_planes`: 추출할 평면의 개수 (기본값: 5)
+## 각 코드 설명
 
-## 출력
+### outline.py
+- 3D 포인트클라우드를 XZ 평면(Top-Down)으로 투영
+- DBSCAN으로 클러스터 분리, 2D 윤곽선 추출
+- 2D-3D 매핑 정보(`pixel_to_points.pkl`) 저장
 
-- `refined_planes/` 폴더에 추출된 평면들이 저장됩니다:
-  - `plane_1.ply`, `plane_2.ply`, ...: 각 평면의 포인트 클라우드
-  - `plane_1_model.txt`, `plane_2_model.txt`, ...: 각 평면의 수학적 모델 정보
+### morph.py
+- 2D 바이너리 이미지에 모폴로지 연산(침식, 팽창, 열림-닫힘) 적용
+- 노이즈 제거 및 윤곽 부드럽게
 
-## 평면 모델
+### morph_to_pcd.py
+- 모폴로지 결과 이미지의 흰색 픽셀을 3D로 복원
+- (Y값은 임의, XZ는 원래 좌표계와 일치)
+- 모든 포인트에 파란색(RGB: 0,0,1) 지정
 
-평면은 `ax + by + cz + d = 0` 형태로 표현되며, 각 파일에는 다음 정보가 포함됩니다:
-- a, b, c: 평면의 법선 벡터 성분
-- d: 원점으로부터의 거리
-- 포인트 개수
+---
 
-## 시각화
+## 참고/팁
 
-코드 실행 시 Open3D 뷰어가 열리며 다음 색상으로 표시됩니다:
-- 회색: 원본 포인트 클라우드
-- 빨간색, 초록색, 파란색, 노란색, 마젠타, 시안: 각 평면
-- 검은색: 평면에 속하지 않는 나머지 포인트들 
->>>>>>> f9febe62 (first commit)
+- 바닥면에도 동일한 파이프라인 적용 가능 (파인 부분 등 분석)
+- DBSCAN, 모폴로지 파라미터는 데이터에 따라 조정 필요
+- 3D 결과는 Open3D 등으로 시각화 가능
+
+---
+
+## 문의
+
+- 파라미터 튜닝, 추가 기능, 시각화 등 궁금한 점은 언제든 문의하세요!
