@@ -155,7 +155,7 @@ def cluster_objects_direct_dbscan(
 
 if __name__ == "__main__":
     # --- 설정 파라미터 ---
-    input_pcd_file = "output/ransac/non_floor.pcd" # 입력 포인트 클라우드 파일 경로
+    input_pcd_file = "output/ransac/above_floor.pcd" # 입력 포인트 클라우드 파일 경로
     output_base_directory = "output/dbscan" # 모든 결과물 저장될 기본 폴더
 
     # DBSCAN 클러스터링 (객체용) 파라미터 - 이 값들을 조정하여 최적화하세요!

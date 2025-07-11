@@ -131,7 +131,7 @@ def extract_2d_outline_from_pcd_y_up(
     return all_clean_contours, (img_width, img_height), (min_proj_x, min_proj_z), scale_factor
 
 if __name__ == "__main__":
-    input_pcd_for_outline = "output/ransac/non_floor.pcd" 
+    input_pcd_for_outline = "output/ransac/above_floor.pcd" 
     output_outline_dir = "output/outline" 
     extracted_contours, img_dims, min_coords, scale = extract_2d_outline_from_pcd_y_up(
         input_pcd_for_outline,

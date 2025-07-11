@@ -9,6 +9,7 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
     """
     3D Gaussian Splatting 모델 (PLY 또는 PCD 파일)을 불러와 RANSAC을 이용해 여러 평면을 검출하고,
     바닥 평면들을 하나의 파일로 합치고, 바닥을 제외한 부분도 별도 파일로 저장합니다.
+    추가로 개별 바닥 평면들도 별도 파일로 저장합니다.
 
     Args:
         pcd_path (str): Gaussian Splatting 모델의 .pcd 또는 .ply 파일 경로
@@ -158,7 +159,30 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
 
     print(f"\nFinished finding {plane_count} planes.")
 
-    # --- 2. 바닥 평면 합치기 ---
+    # --- 2. 모든 개별 바닥 평면 통합 저장 ---
+    if floor_planes:
+        # 모든 개별 평면의 포인트 인덱스를 합치기
+        all_individual_indices = []
+        for floor_plane in floor_planes:
+            all_individual_indices.extend(floor_plane['inliers_indices_original_pcd'])
+        
+        # 중복 제거
+        all_individual_indices = list(set(all_individual_indices))
+        
+        # 전체 합쳐진 포인트 클라우드 생성
+        all_individual_floor_cloud = original_pcd.select_by_index(all_individual_indices)
+        
+        # 전체 합쳐진 파일 저장 (ransac 폴더 바로 안에)
+        all_individual_filename = "floor_plane.pcd"
+        all_individual_filepath = os.path.join(output_dir_base, all_individual_filename)
+        
+        try:
+            o3d.io.write_point_cloud(all_individual_filepath, all_individual_floor_cloud)
+            print(f"✅ 모든 개별 바닥 평면 통합 파일 저장됨: {all_individual_filename} ({len(all_individual_indices)} 포인트, {len(floor_planes)}개 평면)")
+        except Exception as e:
+            print(f"❌ 전체 개별 평면 통합 파일 저장 중 오류: {e}")
+
+    # --- 3. 바닥 평면 합치기 ---
     print(f"\n=== 바닥 처리 시작 ===")
     print(f"검출된 바닥 후보 평면 수: {len(floor_planes)}개")
 
@@ -220,7 +244,7 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
         floor_cloud.paint_uniform_color([0.8, 0.8, 0.8])  # 밝은 회색으로 바닥 표시
         
         # 바닥 파일 저장
-        floor_output_path = os.path.join(output_dir_base, "floor.pcd")
+        floor_output_path = os.path.join(output_dir_base, "under_floor.pcd")
         try:
             o3d.io.write_point_cloud(floor_output_path, floor_cloud)
             print(f"✅ 바닥 포인트 클라우드 저장됨: {floor_output_path} ({len(floor_indices)} 포인트)")
@@ -231,7 +255,7 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
         floor_cloud = None
         floor_indices = []
 
-    # --- 3. 바닥을 제외한 나머지 포인트 처리 ---
+    # --- 4. 바닥을 제외한 나머지 포인트 처리 ---
     print(f"\n=== 바닥 제외 처리 시작 ===")
     if floor_cloud is not None and len(floor_indices) > 0:
         # 원본 포인트 클라우드에서 바닥 인덱스를 제외한 모든 포인트를 선택
@@ -245,7 +269,7 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
             non_floor_cloud.paint_uniform_color([0.2, 0.2, 0.8])  # 파란색으로 표시
             
             # 바닥 제외 파일 저장
-            non_floor_output_path = os.path.join(output_dir_base, "non_floor.pcd")
+            non_floor_output_path = os.path.join(output_dir_base, "above_floor.pcd")
             try:
                 o3d.io.write_point_cloud(non_floor_output_path, non_floor_cloud)
                 print(f"✅ 바닥 제외 포인트 클라우드 저장됨: {non_floor_output_path} ({len(non_floor_indices)} 포인트)")
@@ -259,7 +283,7 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
         non_floor_cloud = o3d.geometry.PointCloud(original_pcd) # 원본 PCD의 복사본을 만들어 색상 변경
         non_floor_cloud.paint_uniform_color([0.2, 0.2, 0.8])
         
-        non_floor_output_path = os.path.join(output_dir_base, "non_floor.pcd")
+        non_floor_output_path = os.path.join(output_dir_base, "above_floor.pcd")
         try:
             o3d.io.write_point_cloud(non_floor_output_path, non_floor_cloud)
             print(f"✅ 바닥 제외 포인트 클라우드 저장됨: {non_floor_output_path} ({original_total_points} 포인트)")
@@ -267,7 +291,7 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
             print(f"❌ 바닥 제외 파일 저장 중 오류: {e}")
 
 
-    # --- 4. 시각화 ---
+    # --- 5. 시각화 ---
     # 모든 추출된 평면과 나머지 포인트 시각화
     if len(all_inlier_clouds) > 0:
         # RANSAC 후 남은 current_pcd_for_ransac (어떤 평면에도 속하지 않은 노이즈)도 시각화에 포함
