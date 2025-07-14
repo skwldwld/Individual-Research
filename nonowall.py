@@ -143,7 +143,7 @@ def remove_walls(pcd_path, output_dir,
                                       window_name="Cleaned vs Removed (No RANSAC - Y-axis as height)")
 
 if __name__ == "__main__":
-    input_file = "input/3BP_ascii.pcd"
+    input_file = "input/3BP_CS_model_Cloud.pcd"
     output_directory = "output" # 출력 폴더명 변경
 
     remove_walls(

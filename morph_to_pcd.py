@@ -111,3 +111,137 @@ try:
 except Exception as e:
     print(f"시각화 오류 (무시 가능): {e}")
     print("포인트클라우드는 정상적으로 저장되었습니다.") 
+
+# --- 바닥 평면(floor_plane) morph 결과로 PCD 생성 ---
+scale_factor_floor = 3  # outline.py, morph.py에서 사용한 값과 동일하게 맞춰야 함
+min_proj_x_floor = 0.0  # outline.py 로그 참고 (필요시 수정)
+min_proj_z_floor = 0.0  # outline.py 로그 참고 (필요시 수정)
+
+morph_img_path_floor = "output/morph/floor_plane/morph_smoothed.png"
+pixel_map_path_floor = "output/outline/floor_plane/pixel_to_points.pkl"
+output_pcd_path_floor = "output/pcd/final_result_floor_plane.pcd"
+
+# 출력 디렉토리 생성
+output_dir_floor = os.path.dirname(output_pcd_path_floor)
+if not os.path.exists(output_dir_floor):
+    os.makedirs(output_dir_floor)
+
+# 1. morph 결과 이미지 로드
+morph_img_floor = cv2.imread(morph_img_path_floor, cv2.IMREAD_GRAYSCALE)
+if morph_img_floor is None:
+    print(f"이미지 로드 실패: {morph_img_path_floor}")
+else:
+    img_height_floor, img_width_floor = morph_img_floor.shape
+    print(f"[floor_plane] 이미지 크기: {img_width_floor} x {img_height_floor}")
+
+    # 2. 매핑 테이블 로드
+    if os.path.exists(pixel_map_path_floor):
+        print(f"[floor_plane] 매핑 테이블 로드 중: {pixel_map_path_floor}")
+        with open(pixel_map_path_floor, "rb") as f:
+            pixel_to_points_floor = pickle.load(f)
+        print(f"[floor_plane] 매핑 테이블 로드 완료: {len(pixel_to_points_floor)} 개의 픽셀-포인트 매핑")
+    else:
+        print(f"⚠️ [floor_plane] 매핑 테이블을 찾을 수 없습니다: {pixel_map_path_floor}")
+        print("outline.py를 먼저 실행하여 매핑 테이블을 생성하세요.")
+        pixel_to_points_floor = None
+
+    if pixel_to_points_floor is not None:
+        # 3. 흰색(255) 픽셀 좌표 추출
+        ys_floor, xs_floor = np.where(morph_img_floor == 255)
+        print(f"[floor_plane] 흰색 픽셀 수: {len(xs_floor)}")
+
+        # 4. 2D → 3D 변환 (매핑된 픽셀만 사용)
+        points_3d_floor = []
+        mapped_count_floor = 0
+        unmapped_count_floor = 0
+
+        for x, y in zip(xs_floor, ys_floor):
+            pixel_key = (int(x), int(y))
+            if pixel_key in pixel_to_points_floor:
+                original_points = pixel_to_points_floor[pixel_key]
+                points_3d_floor.extend(original_points)
+                mapped_count_floor += 1
+            else:
+                unmapped_count_floor += 1
+
+        points_3d_floor = np.array(points_3d_floor)
+        print(f"[floor_plane] 중복 제거 전 포인트 수: {len(points_3d_floor)}")
+
+        # 중복 제거
+        unique_coords_floor = set()
+        unique_points_floor = []
+        for point in points_3d_floor:
+            coord_str = f"{point[0]:.6f},{point[1]:.6f},{point[2]:.6f}"
+            if coord_str not in unique_coords_floor:
+                unique_coords_floor.add(coord_str)
+                unique_points_floor.append(point)
+        points_3d_floor = np.array(unique_points_floor)
+        print(f"[floor_plane] 중복 제거 후 포인트 수: {len(points_3d_floor)}")
+        print(f"[floor_plane] 매핑된 픽셀 수: {mapped_count_floor}")
+        print(f"[floor_plane] 매핑되지 않은 픽셀 수: {unmapped_count_floor}")
+        print(f"[floor_plane] 총 3D 포인트 수: {len(points_3d_floor)}")
+
+        # 5. 포인트클라우드로 저장
+        if len(points_3d_floor) == 0:
+            print("[floor_plane] 3D 포인트가 없습니다. 포인트클라우드를 생성할 수 없습니다.")
+        else:
+            pcd_floor = o3d.geometry.PointCloud()
+            pcd_floor.points = o3d.utility.Vector3dVector(points_3d_floor)
+            # 색상 지정 (초록색)
+            colors_floor = np.array([[0, 1, 0]] * len(points_3d_floor))
+            pcd_floor.colors = o3d.utility.Vector3dVector(colors_floor)
+            o3d.io.write_point_cloud(output_pcd_path_floor, pcd_floor)
+            print(f"✅ [floor_plane] 3D 포인트클라우드 저장 완료: {output_pcd_path_floor}")
+            # 시각화
+            print("\n[floor_plane] 포인트클라우드 시각화 중...")
+            try:
+                # open3d 0.10~0.16
+                o3d.visualization.draw_geometries([pcd_floor], window_name="Morph to PCD Result (floor_plane)")
+            except AttributeError:
+                try:
+                    # open3d 0.17+
+                    o3d.visualization.draw([pcd_floor], window_name="Morph to PCD Result (floor_plane)")
+                except Exception as e:
+                    print(f"[floor_plane] 시각화 오류 (무시 가능): {e}")
+                    print("포인트클라우드는 정상적으로 저장되었습니다.")
+            except Exception as e:
+                print(f"[floor_plane] 시각화 오류 (무시 가능): {e}")
+                print("포인트클라우드는 정상적으로 저장되었습니다.") 
+
+# --- above_floor와 floor_plane PCD를 합쳐서 저장 및 시각화 ---
+combined_pcd_path = "output/pcd/final_result_combined.pcd"
+above_pcd_path = "output/pcd/final_result.pcd"
+floor_pcd_path = "output/pcd/final_result_floor_plane.pcd"
+
+if os.path.exists(above_pcd_path) and os.path.exists(floor_pcd_path):
+    print("\n[combined] 위 영역과 바닥 평면 PCD를 합칩니다...")
+    above_pcd = o3d.io.read_point_cloud(above_pcd_path)
+    floor_pcd = o3d.io.read_point_cloud(floor_pcd_path)
+    combined_pcd = o3d.geometry.PointCloud()
+    # 포인트와 색상 합치기
+    combined_pcd.points = o3d.utility.Vector3dVector(
+        np.vstack((np.asarray(above_pcd.points), np.asarray(floor_pcd.points)))
+    )
+    if above_pcd.has_colors() and floor_pcd.has_colors():
+        combined_pcd.colors = o3d.utility.Vector3dVector(
+            np.vstack((np.asarray(above_pcd.colors), np.asarray(floor_pcd.colors)))
+        )
+    o3d.io.write_point_cloud(combined_pcd_path, combined_pcd)
+    print(f"✅ [combined] 합쳐진 PCD 저장 완료: {combined_pcd_path}")
+    # 시각화
+    print("[combined] 합쳐진 포인트클라우드 시각화 중...")
+    try:
+        # open3d 0.10~0.16
+        o3d.visualization.draw_geometries([combined_pcd], window_name="Morph to PCD Result (combined)")
+    except AttributeError:
+        try:
+            # open3d 0.17+
+            o3d.visualization.draw([combined_pcd], window_name="Morph to PCD Result (combined)")
+        except Exception as e:
+            print(f"[combined] 시각화 오류 (무시 가능): {e}")
+            print("포인트클라우드는 정상적으로 저장되었습니다.")
+    except Exception as e:
+        print(f"[combined] 시각화 오류 (무시 가능): {e}")
+        print("포인트클라우드는 정상적으로 저장되었습니다.")
+else:
+    print("[combined] 위 영역 또는 바닥 평면 PCD가 존재하지 않아 합칠 수 없습니다.") 

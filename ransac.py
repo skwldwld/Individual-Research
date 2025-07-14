@@ -323,9 +323,25 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
     else:
         print("No clouds to visualize for Floor vs Non-Floor segmentation.")
 
+    # --- floor_plane.pcd(모든 바닥 평면 통합본) 시각화 ---
+    floor_plane_path = os.path.join(output_dir_base, "floor_plane.pcd")
+    if os.path.exists(floor_plane_path):
+        try:
+            floor_plane_cloud = o3d.io.read_point_cloud(floor_plane_path)
+            print("\nVisualizing saved floor_plane.pcd (모든 바닥 평면 통합본)...")
+            o3d.visualization.draw_geometries(
+                [floor_plane_cloud],
+                window_name="Saved Floor Plane (floor_plane.pcd)"
+            )
+        except Exception as e:
+            print(f"❌ floor_plane.pcd 시각화 중 오류: {e}")
+    else:
+        print("floor_plane.pcd 파일이 존재하지 않아 시각화하지 않습니다.")
+
 
 if __name__ == "__main__":
-    # input_pcd_file = "input/3BP_ascii.pcd"
+    # 기존 코드 (nonowall 적용된 PCD)
+    # input_pcd_file = "input/3BP_CS_model_Cloud.pcd"
     input_pcd_file = "output/nonowall.pcd"
     output_base_directory = "output/ransac"
     
@@ -350,4 +366,21 @@ if __name__ == "__main__":
         num_iterations=1000,
         min_inliers_ratio=min_inliers_ratio_threshold,
         vertical_offset=VERTICAL_OFFSET_ABOVE_FLOOR # <-- 추가된 파라미터 전달
+    )
+
+    # --- 바닥 평면만 원본 PCD에서 별도 추출 ---
+    input_pcd_file_original = "output/nonowall.pcd"  # nonowall 적용 안 된 원본
+    output_base_directory_floor_orig = "output/ransac/floor_plane_from_original"
+    if not os.path.exists(output_base_directory_floor_orig):
+        os.makedirs(output_base_directory_floor_orig)
+    print("\n[원본에서 바닥 평면만 별도 추출]")
+    load_and_ransac_multiple_planes(
+        input_pcd_file_original,
+        output_base_directory_floor_orig,
+        max_planes=10,  # 바닥 평면만 추출할 것이므로 적당히
+        distance_threshold=0.02,
+        ransac_n=3,
+        num_iterations=1000,
+        min_inliers_ratio=0.01,
+        vertical_offset=0.0  # 바닥만 추출할 때는 오프셋 없이
     )

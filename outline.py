@@ -150,3 +150,45 @@ if __name__ == "__main__":
         print(f"\n총 {len(extracted_contours)}개의 윤곽선이 성공적으로 추출되었습니다.")
     else:
         print("\n윤곽선을 추출하지 못했습니다. 위의 로그와 생성된 중간 이미지들을 자세히 확인하여 문제 원인을 파악하세요.")
+
+    # --- floor_plane.pcd(바닥 평면 통합본) 윤곽선 추출 ---
+    input_pcd_floor_plane = "output/ransac/floor_plane.pcd"
+    output_outline_dir_floor = "output/outline/floor_plane"
+    extracted_contours_floor, img_dims_floor, min_coords_floor, scale_floor = extract_2d_outline_from_pcd_y_up(
+        input_pcd_floor_plane,
+        output_outline_dir_floor,
+        scale_factor=3,           # 더 너그러운 파라미터
+        min_contour_area=20,      # 더 작은 객체도 잡음
+        dilate_kernel_size=1,
+        dilate_iterations=0,
+        contour_thickness=1,
+        contour_color=(0, 255, 0), # 바닥 평면은 초록색
+        dbscan_eps=5,             # 클러스터링 범위 넓힘
+        dbscan_min_samples=10,    # 최소 샘플 수 완화
+        dot_size=3
+    )
+    if extracted_contours_floor is not None and len(extracted_contours_floor) > 0:
+        print(f"\n[바닥 평면] 총 {len(extracted_contours_floor)}개의 윤곽선이 성공적으로 추출되었습니다.")
+    else:
+        print("\n[바닥 평면] 윤곽선을 추출하지 못했습니다. 위의 로그와 생성된 중간 이미지들을 자세히 확인하여 문제 원인을 파악하세요.")
+
+    # --- above_floor.pcd(바닥 제외 영역) 윤곽선 추출 ---
+    input_pcd_above_floor = "output/ransac/above_floor.pcd"
+    output_outline_dir_above = "output/outline/above_floor"
+    extracted_contours_above, img_dims_above, min_coords_above, scale_above = extract_2d_outline_from_pcd_y_up(
+        input_pcd_above_floor,
+        output_outline_dir_above,
+        scale_factor=5,
+        min_contour_area=60,
+        dilate_kernel_size=1,
+        dilate_iterations=0,
+        contour_thickness=1,
+        contour_color=(0, 0, 255), # 바닥 제외 영역은 빨간색
+        dbscan_eps=3,
+        dbscan_min_samples=20,
+        dot_size=3
+    )
+    if extracted_contours_above is not None and len(extracted_contours_above) > 0:
+        print(f"\n[바닥 제외 영역] 총 {len(extracted_contours_above)}개의 윤곽선이 성공적으로 추출되었습니다.")
+    else:
+        print("\n[바닥 제외 영역] 윤곽선을 추출하지 못했습니다. 위의 로그와 생성된 중간 이미지들을 자세히 확인하여 문제 원인을 파악하세요.")
