@@ -29,6 +29,22 @@ def extract_2d_outline_from_pcd_y_up(
         print("경로가 정확하고 파일이 손상되지 않았는지 확인하세요.")
         return
 
+    # ⭐⭐⭐ 다운샘플링 조건부 적용 ⭐⭐⭐
+    max_points = 100000
+    if len(pcd.points) > max_points:
+        print(f"다운샘플링 전 포인트 수: {len(pcd.points)}")
+        # 자동 voxel 크기 조정: 0.03에서 시작, 10만개 이하가 될 때까지 증가
+        voxel = 0.03
+        while True:
+            temp_pcd = pcd.voxel_down_sample(voxel_size=voxel)
+            if len(temp_pcd.points) <= max_points or voxel > 1.0:
+                break
+            voxel *= 1.5
+        pcd = temp_pcd
+        print(f"다운샘플링 적용됨! voxel_size={voxel:.4f}, 다운샘플링 후 포인트 수: {len(pcd.points)}")
+    else:
+        print(f"다운샘플링 불필요: 포인트 수 {len(pcd.points)}")
+
     if not pcd.has_points():
         print("🔴 오류: 불러온 포인트 클라우드에 포인트가 없습니다. 윤곽선을 추출할 수 없습니다.")
         return
@@ -130,52 +146,43 @@ def extract_2d_outline_from_pcd_y_up(
         all_clean_contours = []
     return all_clean_contours, (img_width, img_height), (min_proj_x, min_proj_z), scale_factor
 
-if __name__ == "__main__":
-    input_pcd_for_outline = "output/ransac/above_floor.pcd" 
-    output_outline_dir = "output/outline" 
-    extracted_contours, img_dims, min_coords, scale = extract_2d_outline_from_pcd_y_up(
+def main():
+    # 위 영역 윤곽선
+    input_pcd_for_outline = "output/ransac/above_floor.pcd"
+    output_outline_dir = "output/outline/above_floor"
+    extract_2d_outline_from_pcd_y_up(
         input_pcd_for_outline,
         output_outline_dir,
-        scale_factor=5,       # 이미지가 더 조밀해지도록 대폭 낮춤
-        min_contour_area=60,   # 너무 작은 노이즈 클러스터 무시
-        dilate_kernel_size=1,  # 팽창 최소화
-        dilate_iterations=0,   # 팽창 없음
-        contour_thickness=1,   # 윤곽선 선 두께
-        contour_color=(0, 0, 255), # 윤곽선 색상 (BGR: 선명한 빨간색)
+        scale_factor=5,
+        min_contour_area=60,
+        dilate_kernel_size=1,
+        dilate_iterations=0,
+        contour_thickness=1,
+        contour_color=(0, 0, 255),
         dbscan_eps=3,
         dbscan_min_samples=20,
         dot_size=3
     )
-    if extracted_contours is not None and len(extracted_contours) > 0:
-        print(f"\n총 {len(extracted_contours)}개의 윤곽선이 성공적으로 추출되었습니다.")
-    else:
-        print("\n윤곽선을 추출하지 못했습니다. 위의 로그와 생성된 중간 이미지들을 자세히 확인하여 문제 원인을 파악하세요.")
-
-    # --- floor_plane.pcd(바닥 평면 통합본) 윤곽선 추출 ---
+    # 바닥 평면 윤곽선
     input_pcd_floor_plane = "output/ransac/floor_plane.pcd"
     output_outline_dir_floor = "output/outline/floor_plane"
-    extracted_contours_floor, img_dims_floor, min_coords_floor, scale_floor = extract_2d_outline_from_pcd_y_up(
+    extract_2d_outline_from_pcd_y_up(
         input_pcd_floor_plane,
         output_outline_dir_floor,
-        scale_factor=3,           # 더 너그러운 파라미터
-        min_contour_area=20,      # 더 작은 객체도 잡음
+        scale_factor=3,
+        min_contour_area=20,
         dilate_kernel_size=1,
         dilate_iterations=0,
         contour_thickness=1,
-        contour_color=(0, 255, 0), # 바닥 평면은 초록색
-        dbscan_eps=5,             # 클러스터링 범위 넓힘
-        dbscan_min_samples=10,    # 최소 샘플 수 완화
+        contour_color=(0, 255, 0),
+        dbscan_eps=5,
+        dbscan_min_samples=10,
         dot_size=3
     )
-    if extracted_contours_floor is not None and len(extracted_contours_floor) > 0:
-        print(f"\n[바닥 평면] 총 {len(extracted_contours_floor)}개의 윤곽선이 성공적으로 추출되었습니다.")
-    else:
-        print("\n[바닥 평면] 윤곽선을 추출하지 못했습니다. 위의 로그와 생성된 중간 이미지들을 자세히 확인하여 문제 원인을 파악하세요.")
-
-    # --- above_floor.pcd(바닥 제외 영역) 윤곽선 추출 ---
+    # 위 영역(above_floor) 윤곽선(중복)
     input_pcd_above_floor = "output/ransac/above_floor.pcd"
     output_outline_dir_above = "output/outline/above_floor"
-    extracted_contours_above, img_dims_above, min_coords_above, scale_above = extract_2d_outline_from_pcd_y_up(
+    extract_2d_outline_from_pcd_y_up(
         input_pcd_above_floor,
         output_outline_dir_above,
         scale_factor=5,
@@ -183,12 +190,11 @@ if __name__ == "__main__":
         dilate_kernel_size=1,
         dilate_iterations=0,
         contour_thickness=1,
-        contour_color=(0, 0, 255), # 바닥 제외 영역은 빨간색
+        contour_color=(0, 0, 255),
         dbscan_eps=3,
         dbscan_min_samples=20,
         dot_size=3
     )
-    if extracted_contours_above is not None and len(extracted_contours_above) > 0:
-        print(f"\n[바닥 제외 영역] 총 {len(extracted_contours_above)}개의 윤곽선이 성공적으로 추출되었습니다.")
-    else:
-        print("\n[바닥 제외 영역] 윤곽선을 추출하지 못했습니다. 위의 로그와 생성된 중간 이미지들을 자세히 확인하여 문제 원인을 파악하세요.")
+
+if __name__ == "__main__":
+    main()

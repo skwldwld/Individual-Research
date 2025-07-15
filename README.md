@@ -1,4 +1,5 @@
-npx -y @modelcontextprotocol/server-filesystem C:/Users/dabeen/Desktop/Individual-Research
+npx -y @modelcontextprotocol/server-filesystem C:/Users/yejim/Desktop/yeji/Individual-Research
+
 
 # 3D 포인트클라우드 기반 의미 있는 물체 추출 및 미니맵 생성 파이프라인
 
