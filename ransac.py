@@ -355,7 +355,7 @@ if __name__ == "__main__":
     # 즉, 바닥과 객체 간의 지저분한 연결 부분을 '잘라내는' 효과가 있습니다.
     # 0.01 (1cm), 0.02 (2cm), 0.05 (5cm), 0.1 (10cm) 등 작은 값부터 시작하여 테스트해보세요.
     # ======================================================================
-    VERTICAL_OFFSET_ABOVE_FLOOR = 2  # 5 -> 바닥 싹사라짐
+    VERTICAL_OFFSET_ABOVE_FLOOR = 1.5  # 5 -> 바닥 싹사라짐
 
     load_and_ransac_multiple_planes(
         input_pcd_file,

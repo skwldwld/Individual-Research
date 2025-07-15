@@ -39,9 +39,17 @@ def img_to_pcd(morph_img_path, pixel_map_path, output_pcd_path, label=""):
     print(f"{label} 총 3D 포인트 수: {len(points_3d)} (매핑된 픽셀: {mapped_pixel_count}, 매핑X: {unmapped_pixel_count})")
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points_3d)
-    o3d.io.write_point_cloud(output_pcd_path, pcd)
-    print(f"✅ {label} PCD 저장 완료: {output_pcd_path}")
-    return True
+    # PCD 저장 전 폴더 생성
+    output_dir = os.path.dirname(output_pcd_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+    # PCD 저장
+    result = o3d.io.write_point_cloud(output_pcd_path, pcd)
+    if result:
+        print(f"✅ {label} PCD 저장 완료: {output_pcd_path}")
+    else:
+        print(f"❌ {label} PCD 저장 실패: {output_pcd_path}")
+    return result
 
 def merge_pcds(pcd_paths, output_path):
     """
@@ -70,7 +78,7 @@ def main():
         {
             "label": "[above_floor]",
             "morph_img": "output/morph/above_floor/morph_smoothed.png",
-            "pixel_map": "output/outline/pixel_to_points.pkl",
+            "pixel_map": "output/outline/above_floor/pixel_to_points.pkl",
             "output_pcd": "output/pcd/final_result_above_floor.pcd"
         },
         {
