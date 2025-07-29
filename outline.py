@@ -76,6 +76,7 @@ def extract_2d_outline_from_pcd_y_up(
         img_width = max(img_width, min_img_dim)
         img_height = max(img_height, min_img_dim)
     print(f"🟢 생성될 최종 이미지 크기: {img_width} x {img_height} 픽셀 (너비 x 높이)")
+    print(f"[DEBUG] min_proj_x: {min_proj_x}, min_proj_z: {min_proj_z}, scale_factor: {scale_factor}, img_height: {img_height}")
 
     # 전체 이진 이미지(시각화용)
     binary_image = np.zeros((img_height, img_width), dtype=np.uint8)
@@ -108,10 +109,13 @@ def extract_2d_outline_from_pcd_y_up(
         for px, py in np.c_[pixel_points_x, pixel_points_y]:
             if 0 <= py < img_height and 0 <= px < img_width:
                 cv2.rectangle(cluster_img, (px-dot_size//2, py-dot_size//2), (px+dot_size//2, py+dot_size//2), 255, -1)
-        # 팽창 등 최소화 (붙지 않게)
+        # 팽창 최소화 (떨어져 있는 객체 연결 방지)
         if dilate_iterations > 0:
             dilate_kernel = np.ones((dilate_kernel_size, dilate_kernel_size), np.uint8)
             cluster_img = cv2.dilate(cluster_img, dilate_kernel, iterations=dilate_iterations)
+            # 팽창 후 침식으로 경계를 더 선명하게
+            erode_kernel = np.ones((dilate_kernel_size, dilate_kernel_size), np.uint8)
+            cluster_img = cv2.erode(cluster_img, erode_kernel, iterations=1)
         # 컨투어 추출
         contours, _ = cv2.findContours(cluster_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # 면적 필터링 및 근사화
@@ -159,9 +163,9 @@ def main():
         dilate_iterations=0,
         contour_thickness=1,
         contour_color=(0, 0, 255),
-        dbscan_eps=3,
-        dbscan_min_samples=20,
-        dot_size=3
+        dbscan_eps=1.5,  # 더 작은 eps로 엄격한 클러스터링
+        dbscan_min_samples=15,  # 더 적은 최소 샘플 수
+        dot_size=2  # 더 작은 점 크기
     )
     # 바닥 평면 윤곽선
     input_pcd_floor_plane = "output/ransac/floor_plane.pcd"
@@ -175,9 +179,9 @@ def main():
         dilate_iterations=0,
         contour_thickness=1,
         contour_color=(0, 255, 0),
-        dbscan_eps=5,
-        dbscan_min_samples=10,
-        dot_size=3
+        dbscan_eps=2.0,  # 더 작은 eps로 엄격한 클러스터링
+        dbscan_min_samples=8,  # 더 적은 최소 샘플 수
+        dot_size=2  # 더 작은 점 크기
     )
     # 위 영역(above_floor) 윤곽선(중복)
     input_pcd_above_floor = "output/ransac/above_floor.pcd"
@@ -191,9 +195,9 @@ def main():
         dilate_iterations=0,
         contour_thickness=1,
         contour_color=(0, 0, 255),
-        dbscan_eps=3,
-        dbscan_min_samples=20,
-        dot_size=3
+        dbscan_eps=1.5,  # 더 작은 eps로 엄격한 클러스터링
+        dbscan_min_samples=15,  # 더 적은 최소 샘플 수
+        dot_size=2  # 더 작은 점 크기
     )
 
 if __name__ == "__main__":

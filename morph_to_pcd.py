@@ -4,9 +4,10 @@ import open3d as o3d
 import numpy as np
 import pickle
 
-def img_to_pcd(morph_img_path, pixel_map_path, output_pcd_path, label=""):
+def img_to_pcd(morph_img_path, pixel_map_path, output_pcd_path, label="", color=None):
     """
     2D 바이너리 이미지와 픽셀-3D포인트 매핑 테이블을 이용해 PCD 파일을 생성합니다.
+    color: (R, G, B) 0~1 float, 모든 포인트에 동일 색상 적용
     """
     morph_img = cv2.imread(morph_img_path, cv2.IMREAD_GRAYSCALE)
     if morph_img is None:
@@ -39,6 +40,10 @@ def img_to_pcd(morph_img_path, pixel_map_path, output_pcd_path, label=""):
     print(f"{label} 총 3D 포인트 수: {len(points_3d)} (매핑된 픽셀: {mapped_pixel_count}, 매핑X: {unmapped_pixel_count})")
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points_3d)
+    # 색상 지정
+    if color is not None:
+        colors = np.tile(np.array(color, dtype=np.float32), (len(points_3d), 1))
+        pcd.colors = o3d.utility.Vector3dVector(colors)
     # PCD 저장 전 폴더 생성
     output_dir = os.path.dirname(output_pcd_path)
     if not os.path.exists(output_dir):
@@ -54,6 +59,7 @@ def img_to_pcd(morph_img_path, pixel_map_path, output_pcd_path, label=""):
 def merge_pcds(pcd_paths, output_path):
     """
     여러 PCD 파일을 합쳐서 하나의 PCD로 저장합니다.
+    색상 정보도 함께 병합합니다.
     """
     combined = o3d.geometry.PointCloud()
     for path in pcd_paths:
@@ -73,29 +79,31 @@ def merge_pcds(pcd_paths, output_path):
         return False
 
 def main():
-    # 경로/라벨 정의
+    # 경로/라벨/색상 정의 (front_view, floor_plane만 포함)
     jobs = [
         {
-            "label": "[above_floor]",
-            "morph_img": "output/morph/above_floor/morph_smoothed.png",
-            "pixel_map": "output/outline/above_floor/pixel_to_points.pkl",
-            "output_pcd": "output/pcd/final_result_above_floor.pcd"
+            "label": "[front_view]",
+            "morph_img": "output/morph/front_view/morph_smoothed.png",
+            "pixel_map": "output/outline/front_view/pixel_to_points.pkl",
+            "output_pcd": "output/pcd/final_result_front_view.pcd",
+            "color": [0, 1, 0]  # 초록색
         },
         {
             "label": "[floor_plane]",
             "morph_img": "output/morph/floor_plane/morph_smoothed.png",
             "pixel_map": "output/outline/floor_plane/pixel_to_points.pkl",
-            "output_pcd": "output/pcd/final_result_floor_plane.pcd"
+            "output_pcd": "output/pcd/final_result_floor_plane.pcd",
+            "color": [1, 0, 0]  # 빨간색
         }
     ]
     # 각 영역별 PCD 생성
     for job in jobs:
-        img_to_pcd(job["morph_img"], job["pixel_map"], job["output_pcd"], job["label"])
+        img_to_pcd(job["morph_img"], job["pixel_map"], job["output_pcd"], job["label"], color=job["color"])
 
-    # 병합
+    # 병합 (front_view, floor_plane만)
     merge_pcds(
         [
-            "output/pcd/final_result_above_floor.pcd",
+            "output/pcd/final_result_front_view.pcd",
             "output/pcd/final_result_floor_plane.pcd"
         ],
         "output/pcd/final_result.pcd"
