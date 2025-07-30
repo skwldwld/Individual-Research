@@ -25,7 +25,7 @@ def extract_2d_outline_from_pcd_y_up(
     try:
         pcd = o3d.io.read_point_cloud(pcd_path)
     except Exception as e:
-        print(f"🔴 오류: 포인트 클라우드 불러오기 실패: {e}")
+        print(f"[ERROR] 포인트 클라우드 불러오기 실패: {e}")
         print("경로가 정확하고 파일이 손상되지 않았는지 확인하세요.")
         return
 
@@ -46,11 +46,11 @@ def extract_2d_outline_from_pcd_y_up(
         print(f"다운샘플링 불필요: 포인트 수 {len(pcd.points)}")
 
     if not pcd.has_points():
-        print("🔴 오류: 불러온 포인트 클라우드에 포인트가 없습니다. 윤곽선을 추출할 수 없습니다.")
+        print("[ERROR] 불러온 포인트 클라우드에 포인트가 없습니다. 윤곽선을 추출할 수 없습니다.")
         return
 
     points = np.asarray(pcd.points)
-    print(f"🟢 로딩된 총 포인트 수: {len(points)}")
+    print(f"[INFO] 로딩된 총 포인트 수: {len(points)}")
 
     # 1. X-Z 평면으로 투영 (Y축이 높이이므로 XZ 평면이 탑뷰가 됨)
     projected_points = points[:, [0, 2]] # X, Z 좌표 사용
@@ -75,7 +75,7 @@ def extract_2d_outline_from_pcd_y_up(
     if img_width < min_img_dim or img_height < min_img_dim:
         img_width = max(img_width, min_img_dim)
         img_height = max(img_height, min_img_dim)
-    print(f"🟢 생성될 최종 이미지 크기: {img_width} x {img_height} 픽셀 (너비 x 높이)")
+    print(f"[INFO] 생성될 최종 이미지 크기: {img_width} x {img_height} 픽셀 (너비 x 높이)")
     print(f"[DEBUG] min_proj_x: {min_proj_x}, min_proj_z: {min_proj_z}, scale_factor: {scale_factor}, img_height: {img_height}")
 
     # 전체 이진 이미지(시각화용)
@@ -133,27 +133,38 @@ def extract_2d_outline_from_pcd_y_up(
             cv2.drawContours(contour_image, clean_contours, -1, contour_color, contour_thickness)
             cv2.drawContours(binary_image, clean_contours, -1, (255,255,255), -1)
             cluster_count += 1
-    print(f"🟢 최종 추출된 클러스터 컨투어 개수: {len(all_clean_contours)} (클러스터 수: {cluster_count})")
+    print(f"[INFO] 최종 추출된 클러스터 컨투어 개수: {len(all_clean_contours)} (클러스터 수: {cluster_count})")
     # --- 매핑 테이블 pickle로 저장 ---
     pixel_map_path = os.path.join(output_dir, "pixel_to_points.pkl")
     with open(pixel_map_path, "wb") as f:
         pickle.dump(pixel_to_points, f)
-    print(f"✅ 2D 픽셀-3D포인트 매핑 저장됨: {pixel_map_path}")
+    print(f"[SUCCESS] 2D 픽셀-3D포인트 매핑 저장됨: {pixel_map_path}")
     # 결과 이미지 저장
     output_image_path_binary = os.path.join(output_dir, "binary.png")
     output_image_path_contours = os.path.join(output_dir, "contours.png")
     cv2.imwrite(output_image_path_binary, binary_image)
     cv2.imwrite(output_image_path_contours, contour_image)
-    print(f"✅ 이진 투영 이미지 저장됨: {output_image_path_binary}")
-    print(f"✅ 추출된 윤곽선 이미지 저장됨: {output_image_path_contours}")
+    print(f"[SUCCESS] 이진 투영 이미지 저장됨: {output_image_path_binary}")
+    print(f"[SUCCESS] 추출된 윤곽선 이미지 저장됨: {output_image_path_contours}")
+    
+    # 꼭짓점 시각화 이미지 생성
+    corners_vis_image = contour_image.copy()
+    for contour in all_clean_contours:
+        for point in contour:
+            x, y = point[0]
+            cv2.circle(corners_vis_image, (x, y), dot_size, (0, 0, 255), -1)  # 빨간 점으로 꼭짓점 표시
+    
+    output_image_path_corners = os.path.join(output_dir, "corners_vis.png")
+    cv2.imwrite(output_image_path_corners, corners_vis_image)
+    print(f"[SUCCESS] 꼭짓점 시각화 이미지 저장됨: {output_image_path_corners}")
     if all_clean_contours is None:
         all_clean_contours = []
     return all_clean_contours, (img_width, img_height), (min_proj_x, min_proj_z), scale_factor
 
 def main():
     # 위 영역 윤곽선
-    input_pcd_for_outline = "output/ransac/above_floor.pcd"
-    output_outline_dir = "output/outline/above_floor"
+    input_pcd_for_outline = "../output/ransac/above_floor.pcd"
+    output_outline_dir = "../output/outline/above_floor"
     extract_2d_outline_from_pcd_y_up(
         input_pcd_for_outline,
         output_outline_dir,
@@ -168,8 +179,8 @@ def main():
         dot_size=2  # 더 작은 점 크기
     )
     # 바닥 평면 윤곽선
-    input_pcd_floor_plane = "output/ransac/floor_plane.pcd"
-    output_outline_dir_floor = "output/outline/floor_plane"
+    input_pcd_floor_plane = "../output/ransac/floor_plane.pcd"
+    output_outline_dir_floor = "../output/outline/floor_plane"
     extract_2d_outline_from_pcd_y_up(
         input_pcd_floor_plane,
         output_outline_dir_floor,
@@ -184,8 +195,8 @@ def main():
         dot_size=2  # 더 작은 점 크기
     )
     # 위 영역(above_floor) 윤곽선(중복)
-    input_pcd_above_floor = "output/ransac/above_floor.pcd"
-    output_outline_dir_above = "output/outline/above_floor"
+    input_pcd_above_floor = "../output/ransac/above_floor.pcd"
+    output_outline_dir_above = "../output/outline/above_floor"
     extract_2d_outline_from_pcd_y_up(
         input_pcd_above_floor,
         output_outline_dir_above,

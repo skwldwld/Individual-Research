@@ -79,35 +79,47 @@ def merge_pcds(pcd_paths, output_path):
         return False
 
 def main():
-    # 경로/라벨/색상 정의 (front_view, floor_plane만 포함)
+    # 경로/라벨/색상 정의 (실제 존재하는 파일들만 포함)
     jobs = [
         {
-            "label": "[front_view]",
-            "morph_img": "output/morph/front_view/morph_smoothed.png",
-            "pixel_map": "output/outline/front_view/pixel_to_points.pkl",
-            "output_pcd": "output/pcd/final_result_front_view.pcd",
-            "color": [0, 1, 0]  # 초록색
-        },
-        {
             "label": "[floor_plane]",
-            "morph_img": "output/morph/floor_plane/morph_smoothed.png",
-            "pixel_map": "output/outline/floor_plane/pixel_to_points.pkl",
-            "output_pcd": "output/pcd/final_result_floor_plane.pcd",
+            "morph_img": "../output/morph/floor_plane/morph_smoothed.png",
+            "pixel_map": "../output/outline/floor_plane/pixel_to_points.pkl",
+            "output_pcd": "../output/pcd/final_result_floor_plane.pcd",
             "color": [1, 0, 0]  # 빨간색
         }
     ]
+    
+    # above_floor 파일이 존재하면 추가 (front_view 대신)
+    above_floor_morph = "../output/morph/above_floor/morph_smoothed.png"
+    above_floor_pkl = "../output/outline/above_floor/pixel_to_points.pkl"
+    if os.path.exists(above_floor_morph) and os.path.exists(above_floor_pkl):
+        jobs.insert(0, {
+            "label": "[above_floor]",
+            "morph_img": above_floor_morph,
+            "pixel_map": above_floor_pkl,
+            "output_pcd": "../output/pcd/final_result_above_floor.pcd",
+            "color": [0, 1, 0]  # 초록색
+        })
+        print("[INFO] above_floor 파일 발견, 처리에 포함합니다.")
+    else:
+        print("[INFO] above_floor 파일이 없어서 건너뜁니다.")
     # 각 영역별 PCD 생성
+    created_pcds = []
     for job in jobs:
-        img_to_pcd(job["morph_img"], job["pixel_map"], job["output_pcd"], job["label"], color=job["color"])
+        if img_to_pcd(job["morph_img"], job["pixel_map"], job["output_pcd"], job["label"], color=job["color"]):
+            created_pcds.append(job["output_pcd"])
 
-    # 병합 (front_view, floor_plane만)
-    merge_pcds(
-        [
-            "output/pcd/final_result_front_view.pcd",
-            "output/pcd/final_result_floor_plane.pcd"
-        ],
-        "output/pcd/final_result.pcd"
-    )
+    # 병합 (생성된 PCD들만)
+    if len(created_pcds) > 1:
+        merge_pcds(created_pcds, "../output/pcd/final_result.pcd")
+    elif len(created_pcds) == 1:
+        # 하나만 있으면 그대로 복사
+        import shutil
+        shutil.copy2(created_pcds[0], "../output/pcd/final_result.pcd")
+        print(f"✅ 단일 PCD 복사 완료: {created_pcds[0]} -> ../output/pcd/final_result.pcd")
+    else:
+        print("❌ 생성된 PCD가 없습니다.")
 
 if __name__ == "__main__":
     main() 

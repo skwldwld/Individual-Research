@@ -59,9 +59,9 @@ def remove_walls_by_box(
 
     try:
         o3d.io.write_point_cloud(output_file_path, non_wall_pcd)
-        print(f"✅ Saved: {output_file_path} ({len(non_wall_pcd.points)} points)")
+        print(f"[SUCCESS] Saved: {output_file_path} ({len(non_wall_pcd.points)} points)")
     except Exception as e:
-        print(f"❌ Error saving cleaned point cloud: {e}")
+        print(f"[ERROR] Error saving cleaned point cloud: {e}")
 
     o3d.visualization.draw_geometries(
         [non_wall_pcd, removed_pcd],
@@ -70,8 +70,8 @@ def remove_walls_by_box(
 
 
 def main():
-    input_file = "input/3BP_CS_model_Cloud.pcd"
-    output_directory = "output"
+    input_file = "../input/3BP_CS_model_Cloud.pcd"
+    output_directory = "../output"
     remove_walls_by_box(
         pcd_path=input_file,
         output_dir=output_directory,
@@ -81,4 +81,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main() 
