@@ -148,7 +148,7 @@ def extract_2d_outline_from_pcd_y_up(
     print(f"[SUCCESS] 추출된 윤곽선 이미지 저장됨: {output_image_path_contours}")
     
     # 꼭짓점 시각화 이미지 생성
-    corners_vis_image = contour_image.copy()
+    _vis_image = contour_image.copy()
     for contour in all_clean_contours:
         for point in contour:
             x, y = point[0]
