@@ -36,8 +36,9 @@ def morph_process(binary_img_path, output_dir, kernel_size=5):
 
 def main():
     outline_targets = [
-        ("above_floor", "../output/outline/above_floor/binary.png"),
+        ("topview", "../output/outline/topview/binary.png"),
         ("floor_plane", "../output/outline/floor_plane/binary.png"),
+        ("sideview", "../output/outline/sideview/binary.png"),
     ]
     for name, binary_img_path in outline_targets:
         output_dir = os.path.join("../output", "morph", name)

@@ -92,7 +92,7 @@ python pcd_to_mesh.py # 6단계: 3D 메쉬 생성
    - 바닥과 객체 간의 지저분한 연결 부분 제거
 5. **결과 저장**:
    - `output/ransac/floor_plane.pcd`: 바닥 평면
-   - `output/ransac/above_floor.pcd`: 바닥 위 영역
+   - `output/ransac/topview.pcd`: 바닥 위 영역
 
 #### **핵심 파라미터:**
 - `max_planes`: 40 (최대 평면 수)
@@ -109,7 +109,7 @@ python pcd_to_mesh.py # 6단계: 3D 메쉬 생성
 - 컨투어 추출을 통한 2D 윤곽선 생성
 
 #### **작동 과정:**
-1. **포인트 클라우드 로드**: `output/ransac/above_floor.pcd`, `output/ransac/floor_plane.pcd`
+1. **포인트 클라우드 로드**: `output/ransac/topview.pcd`, `output/ransac/floor_plane.pcd`
 2. **2D 투영**:
    - Y축 위쪽에서 바라보기 위해 X-Z 평면으로 투영
    - 3D 좌표 (x,y,z) → 2D 좌표 (x,z)
@@ -202,7 +202,7 @@ python pcd_to_mesh.py # 6단계: 3D 메쉬 생성
 ### **중간 결과:**
 - `output/nonowall.pcd`: 벽이 제거된 포인트 클라우드
 - `output/ransac/floor_plane.pcd`: 바닥 평면 포인트 클라우드
-- `output/ransac/above_floor.pcd`: 바닥 위 영역 포인트 클라우드
+- `output/ransac/topview.pcd`: 바닥 위 영역 포인트 클라우드
 - `output/outline/*/binary.png`: 2D 이진 투영 이미지
 - `output/outline/*/pixel_to_points.pkl`: 픽셀-3D점 매핑 테이블
 - `output/morph/*/morph_smoothed.png`: 형태학 처리된 이미지

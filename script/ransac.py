@@ -211,7 +211,7 @@ def load_and_ransac_multiple_planes(pcd_path, output_dir_base, max_planes=5,
         non_floor_cloud.paint_uniform_color([1.0, 0.0, 0.0])  # 빨간색
 
         # 바닥 제외 파일 저장
-        non_floor_output_path = os.path.join(output_dir_base, "above_floor.pcd")
+        non_floor_output_path = os.path.join(output_dir_base, "topview.pcd")
         try:
             o3d.io.write_point_cloud(non_floor_output_path, non_floor_cloud)
             print(f"[SUCCESS] 바닥 제외 포인트 클라우드 저장됨: {non_floor_output_path} ({len(non_floor_cloud.points)} 포인트)")
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     # 즉, 바닥과 객체 간의 지저분한 연결 부분을 '잘라내는' 효과가 있습니다.
     # 0.01 (1cm), 0.02 (2cm), 0.05 (5cm), 0.1 (10cm) 등 작은 값부터 시작하여 테스트해보세요.
     # ======================================================================
-    VERTICAL_OFFSET_ABOVE_FLOOR = 1.5  # 5 -> 바닥 싹사라짐
+    VERTICAL_OFFSET_topview = 1.5  # 5 -> 바닥 싹사라짐
 
     load_and_ransac_multiple_planes(
         input_pcd_file,
@@ -293,7 +293,7 @@ if __name__ == "__main__":
         ransac_n=3,
         num_iterations=1000,
         min_inliers_ratio=min_inliers_ratio_threshold,
-        vertical_offset=VERTICAL_OFFSET_ABOVE_FLOOR # <-- 추가된 파라미터 전달
+        vertical_offset=VERTICAL_OFFSET_topview # <-- 추가된 파라미터 전달
     )
 
     # --- 바닥 평면만 원본 PCD에서 별도 추출 ---

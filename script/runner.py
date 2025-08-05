@@ -54,10 +54,10 @@ def create_directories():
         "../output/mesh",
         "../output/morph",
         "../output/morph/floor_plane",
-        "../output/morph/above_floor",
+        "../output/morph/topview",
         "../output/outline",
         "../output/outline/floor_plane",
-        "../output/outline/above_floor",
+        "../output/outline/topview",
         "../output/ransac",
         "../output/ransac/floor_plane_from_original"
     ]
@@ -110,7 +110,7 @@ def main():
     # 6. RANSAC 결과 확인
     ransac_results = [
         ("../output/ransac/floor_plane.pcd", "바닥 평면 PCD"),
-        ("../output/ransac/above_floor.pcd", "바닥 위 PCD")
+        ("../output/ransac/topview.pcd", "바닥 위 PCD")
     ]
     
     for file_path, description in ransac_results:
@@ -123,8 +123,8 @@ def main():
     
     # 8. 윤곽선 결과 확인
     outline_results = [
-        ("../output/outline/above_floor/binary.png", "상단 뷰 이진 이미지"),
-        ("../output/outline/above_floor/pixel_to_points.pkl", "상단 뷰 픽셀-점 매핑"),
+        ("../output/outline/topview/binary.png", "상단 뷰 이진 이미지"),
+        ("../output/outline/topview/pixel_to_points.pkl", "상단 뷰 픽셀-점 매핑"),
         ("../output/outline/floor_plane/binary.png", "바닥 평면 이진 이미지"),
         ("../output/outline/floor_plane/pixel_to_points.pkl", "바닥 평면 픽셀-점 매핑")
     ]
@@ -139,7 +139,7 @@ def main():
     
     # 10. morph 결과 확인
     morph_results = [
-        ("../output/morph/above_floor/morph_smoothed.png", "상단 뷰 형태학 처리 결과"),
+        ("../output/morph/topview/morph_smoothed.png", "상단 뷰 형태학 처리 결과"),
         ("../output/morph/floor_plane/morph_smoothed.png", "바닥 평면 형태학 처리 결과")
     ]
     
@@ -173,8 +173,8 @@ def main():
         print("\n[INFO] 생성된 주요 파일들:")
         print("  • ../output/nonowall.pcd - 벽 제거된 PCD")
         print("  • ../output/ransac/floor_plane.pcd - 바닥 평면 PCD")
-        print("  • ../output/ransac/above_floor.pcd - 바닥 위 PCD")
-        print("  • ../output/morph/above_floor/morph_smoothed.png - 상단 뷰 형태학 처리")
+        print("  • ../output/ransac/topview.pcd - 바닥 위 PCD")
+        print("  • ../output/morph/topview/morph_smoothed.png - 상단 뷰 형태학 처리")
         print("  • ../output/pcd/extruded_building_mesh.ply - 최종 건물 메쉬")
         print("  • ../output/mesh/merged_result_solid.ply - 바닥과 병합된 메쉬")
         print("  • ../output/coordinate_mapping.json - 좌표 매핑 정보")

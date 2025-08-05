@@ -244,13 +244,13 @@ def main():
     img_height_top = 163
     fixed_height = 10.0
     z_fighting_offset = 0.001
-    top_img = "../output/morph/above_floor/morph_smoothed.png"
+    top_img = "../output/morph/topview/morph_smoothed.png"
 
     try:
         top_corners_px_raw = extract_corners(top_img, epsilon_ratio=0.0)
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}")
-        print("Please ensure '../output/morph/above_floor/morph_smoothed.png' exists.")
+        print("Please ensure '../output/morph/topview/morph_smoothed.png' exists.")
         return
 
     try:
@@ -286,7 +286,7 @@ def main():
 
     # 좌표 mapping(pkl) -> translation
     floor_pkl_path = "../output/outline/floor_plane/pixel_to_points.pkl"
-    top_pkl_path = "../output/outline/above_floor/pixel_to_points.pkl"
+    top_pkl_path = "../output/outline/topview/pixel_to_points.pkl"
     translation_x, translation_z, mapping_info = calculate_coordinate_mapping_from_pkl(
         floor_pkl_path, top_pkl_path
     )
