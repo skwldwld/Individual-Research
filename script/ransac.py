@@ -298,7 +298,7 @@ if __name__ == "__main__":
 
     # --- 바닥 평면만 원본 PCD에서 별도 추출 ---
     input_pcd_file_original = "../output/nonowall.pcd"  # nonowall 적용 안 된 원본
-    output_base_directory_floor_orig = "../output/ransac/floor_plane_from_original"
+    output_base_directory_floor_orig = "../output/ransac/floor"
     if not os.path.exists(output_base_directory_floor_orig):
         os.makedirs(output_base_directory_floor_orig)
     print("\n[원본에서 바닥 평면만 별도 추출]")

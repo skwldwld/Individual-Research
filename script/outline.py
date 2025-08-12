@@ -145,26 +145,10 @@ def extract_2d_outline_from_pcd_projection(
     return all_clean_contours, (img_width, img_height), (min_proj_0, min_proj_1), scale_factor
 
 def main():
-    # 위에서 본 outline (x-z 평면, Y축 높이)
-    extract_2d_outline_from_pcd_projection(
-        pcd_path="../output/ransac/topview.pcd",
-        output_dir="../output/outline/topview",
-        project_dims=(0, 2),    # x, z 평면
-        scale_factor=5,
-        min_contour_area=400,
-        dilate_kernel_size=1,
-        dilate_iterations=0,
-        contour_thickness=1,
-        contour_color=(0, 0, 255),
-        dbscan_eps=1.5,
-        dbscan_min_samples=60,
-        dot_size=2,
-        plane_name="topview"
-    )
     # 바닥 outline (x-z 평면)
     extract_2d_outline_from_pcd_projection(
         pcd_path="../output/ransac/floor_plane.pcd",
-        output_dir="../output/outline/floor_plane",
+        output_dir="../output/outline/floor",
         project_dims=(0, 2),
         scale_factor=3,
         min_contour_area=20,
@@ -177,10 +161,26 @@ def main():
         dot_size=2,
         plane_name="floor_topview"
     )
+    # 위에서 본 outline (x-z 평면, Y축 높이)
+    extract_2d_outline_from_pcd_projection(
+        pcd_path="../output/ransac/topview.pcd",
+        output_dir="../output/outline/topview/material",
+        project_dims=(0, 2),    # x, z 평면
+        scale_factor=5,
+        min_contour_area=400,
+        dilate_kernel_size=1,
+        dilate_iterations=0,
+        contour_thickness=1,
+        contour_color=(0, 0, 255),
+        dbscan_eps=1.5,
+        dbscan_min_samples=60,
+        dot_size=2,
+        plane_name="topview"
+    )
     # 옆에서 본 outline (x-y 평면) ← 여기 추가
     extract_2d_outline_from_pcd_projection(
         pcd_path="../output/ransac/topview.pcd",
-        output_dir="../output/outline/sideview",
+        output_dir="../output/outline/sideview/material",
         project_dims=(0, 1),   # x, y 평면 (옆에서 본다)
         scale_factor=5,
         min_contour_area=400,
@@ -193,15 +193,37 @@ def main():
         dot_size=2,
         plane_name="sideview"
     )
-    # 필요하면 z-y 평면(정면뷰)도 똑같이 쓰면 된다.
-    # extract_2d_outline_from_pcd_projection(
-    #     pcd_path="../output/ransac/topview.pcd",
-    #     output_dir="../output/outline/frontview",
-    #     project_dims=(2, 1),   # z, y 평면
-    #     scale_factor=5,
-    #     ...생략...
-    #     plane_name="frontview"
-    # )
+    # 벽 top_view
+    extract_2d_outline_from_pcd_projection(
+        pcd_path="../output/removed_walls.pcd",
+        output_dir="../output/outline/topview/wall",
+        project_dims=(0, 2),   # x-z 평면 (top view)
+        scale_factor=5,
+        min_contour_area=400,
+        dilate_kernel_size=1,
+        dilate_iterations=0,
+        contour_thickness=1,
+        contour_color=(0, 0, 255),
+        dbscan_eps=1.5,
+        dbscan_min_samples=60,
+        dot_size=2,
+        plane_name="walls_topview"
+    )
+    # 벽 side_view
+    extract_2d_outline_from_pcd_projection(
+        pcd_path="../output/removed_walls.pcd",
+        output_dir="../output/outline/sideview/wall",
+        project_dims=(0, 1),     # x, y (Y축이 높이)
+        scale_factor=6,
+        min_contour_area=200,
+        dilate_kernel_size=1, dilate_iterations=0,
+        contour_thickness=2, contour_color=(255, 0, 255),
+        dbscan_eps=1.2, dbscan_min_samples=40,  # sideview는 보통 eps 조금 더 타이트
+        dot_size=2,
+        plane_name="walls_sideview"
+    )
+
+    
 
 if __name__ == "__main__":
     main()
