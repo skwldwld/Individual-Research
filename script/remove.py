@@ -2,10 +2,7 @@ import open3d as o3d
 import numpy as np
 import os
 
-# -----------------------------
-# Utils
-# -----------------------------
-def find_ceiling_indices(points_np, axis_idx, thickness):
+def find_ceiling (points_np, axis_idx, thickness):
     """
     높이축(axis_idx)의 최댓값 부근(천장 밴드) 인덱스 반환.
     퍼센타일을 100으로 두어 최상단 밴드를 안전하게 잡음.
@@ -16,7 +13,7 @@ def find_ceiling_indices(points_np, axis_idx, thickness):
     mask = (points_np[:, axis_idx] >= max_val - thickness) & (points_np[:, axis_idx] <= max_val + 1e-6)
     return np.where(mask)[0].astype(int)
 
-def find_wall_indices_z(points_np, thickness):
+def find_wall (points_np, thickness):
     """
     Z축의 최소/최대 경계 밴드(벽) 인덱스 반환.
     """
@@ -33,10 +30,7 @@ def axis_to_index(height_axis):
         return {'x':0, 'y':1, 'z':2}.get(height_axis.lower(), 2)
     return int(height_axis)
 
-# -----------------------------
-# Main
-# -----------------------------
-def remove_walls_and_ceiling(
+def remove (
     pcd_path,
     output_dir,
     wall_thickness=5.0,
@@ -61,8 +55,8 @@ def remove_walls_and_ceiling(
     h_idx = axis_to_index(height_axis)
 
     # 1) 인덱스 계산
-    wall_idx = find_wall_indices_z(pts, wall_thickness)
-    ceil_idx = find_ceiling_indices(pts, h_idx, ceiling_thickness)
+    wall_idx = find_wall (pts, wall_thickness)
+    ceil_idx = find_ceiling (pts, h_idx, ceiling_thickness)
 
     # 2) 분리
     removed_wall_pcd = pcd.select_by_index(wall_idx) if len(wall_idx) > 0 else o3d.geometry.PointCloud()
@@ -112,10 +106,9 @@ def remove_walls_and_ceiling(
         print("[INFO] Nothing to visualize.")
 
 def main():
-    # input_file = "../input/3BP_CS_model_Cloud.pcd"
-    input_file = "../input/6pp_testbed.pcd"
+    input_file = "../input/3BP_CS_model_Cloud.pcd"
     output_directory = "../output"
-    remove_walls_and_ceiling(
+    remove (
         pcd_path=input_file,
         output_dir=output_directory,
         wall_thickness=9.0,      # 벽 두께(m)

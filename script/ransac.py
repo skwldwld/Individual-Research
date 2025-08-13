@@ -11,7 +11,7 @@ def ransac_main(
     ransac_n: int = 3,
     num_iterations: int = 1000,
     min_inliers_ratio: float = 0.01,
-    vertical_offset: float = 0.2,   # 바닥 윗부분 컷 높이(미터)
+    vertical_offset: float = 0.25,   # 바닥 윗부분 컷 높이(미터)
     visualize: bool = True,
 ):
     os.makedirs(output_dir, exist_ok=True)
@@ -99,5 +99,5 @@ def ransac_main(
     return True
 
 if __name__ == "__main__":
-    # remove.py가 만든 ../output/nonowall.pcd를 입력으로 사용
+    # remove.py가 만든 ../output/remove.pcd를 입력으로 사용
     ransac_main("../output/nonowall.pcd")
