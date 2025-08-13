@@ -112,7 +112,8 @@ def remove_walls_and_ceiling(
         print("[INFO] Nothing to visualize.")
 
 def main():
-    input_file = "../input/3BP_CS_model_Cloud.pcd"
+    # input_file = "../input/3BP_CS_model_Cloud.pcd"
+    input_file = "../input/6pp_testbed.pcd"
     output_directory = "../output"
     remove_walls_and_ceiling(
         pcd_path=input_file,
