@@ -69,8 +69,8 @@ def load_pixel_to_points_mapping(pkl_path):
 # ------------------------------
 # 좌표계 정합(핵심): topview 픽셀 (px,py) -> 월드 (x,z) 2D 유사변환 추정
 # ------------------------------
+
 def _parse_pixel_key(k):
-    # 키가 (x,y) tuple/list 이거나 'x,y' 문자열일 수 있음
     if isinstance(k, (tuple, list)) and len(k) >= 2:
         return int(k[0]), int(k[1])
     if isinstance(k, str):
@@ -112,7 +112,6 @@ def build_correspondences_from_pkl(pkl_path, img_height, sample_every=20, max_po
     return src, dst
 
 def estimate_affine_partial_2d(src, dst, ransac_thresh=0.5):
-    # 유사변환(회전+등방성 스케일+이동) 추정. 반사 포함 가능
     if len(src) < 3 or len(dst) < 3:
         return None, None
     M, inliers = cv2.estimateAffinePartial2D(
@@ -130,18 +129,16 @@ def estimate_affine_partial_2d(src, dst, ransac_thresh=0.5):
     sx = np.linalg.norm(A[:, 0])
     sy = np.linalg.norm(A[:, 1])
     s = (sx + sy) / 2.0
-    # 회전 각도(라디안)
     if s > 1e-8:
         R = A / s
         theta = math.atan2(R[1, 0], R[0, 0])
         deg = math.degrees(theta)
     else:
         deg = 0.0
-    print(f"[INFO] Affine estimated. scale≈{s:.6f}, rot≈{deg:.3f} deg, trans=({M[0,2]:.4f},{M[1,2]:.4f}), inliers={int(inliers.sum()) if inliers is not None else 'NA'}")
+    print(f"[INFO] Affine estimated. scale={s:.6f}, rot={deg:.3f} deg, trans=({M[0,2]:.4f},{M[1,2]:.4f}), inliers={int(inliers.sum()) if inliers is not None else 'NA'}")
     return M, inliers
 
 def apply_affine_to_pixels(M, pts_px, img_height):
-    # pts_px: (N,2) in pixel coords (px,py). 내부에서 y-flip 적용
     if pts_px.size == 0:
         return np.zeros((0, 2), dtype=np.float32)
     px = pts_px[:, 0:1].astype(np.float32)
@@ -153,8 +150,48 @@ def apply_affine_to_pixels(M, pts_px, img_height):
     return W.astype(np.float32)
 
 # ------------------------------
-# 메쉬 유틸
+# 메쉬 유틸 (+ 폴리곤 폭 스케일)
 # ------------------------------
+
+def _pca_axes(pts2):
+    c = np.mean(pts2, axis=0)
+    A = pts2 - c
+    cov = A.T @ A / max(len(pts2) - 1, 1)
+    eigvals, eigvecs = np.linalg.eigh(cov)
+    order = np.argsort(eigvals)[::-1]
+    u = eigvecs[:, order[0]]  # 주축(길이 방향)
+    v = eigvecs[:, order[1]]  # 폭 방향
+    return c, u / np.linalg.norm(u), v / np.linalg.norm(v)
+
+def shrink_polygon_width_pca(poly_xz, scale=0.6, target_width=None):
+    """길이는 그대로 두고, 폭(주축에 수직 성분)만 축소.
+    - scale: 폭에 곱할 비율 (0~1)
+    - target_width: 목표 폭(미터). 주어진 경우 현재 폭 대비 비율을 자동 계산
+    """
+    pts = np.asarray(poly_xz, dtype=np.float32)
+    if len(pts) < 3:
+        return pts
+    c, u, v = _pca_axes(pts)
+    A = pts - c
+    a = A @ u  # 길이 성분
+    b = A @ v  # 폭 성분
+    cur_w = float(b.max() - b.min())
+    if target_width is not None and cur_w > 1e-6:
+        s = max(min(target_width / cur_w, 1.0), 0.05)
+    else:
+        s = float(scale)
+    b2 = b * s
+    pts2 = c + np.outer(a, u) + np.outer(b2, v)
+    return pts2.astype(np.float32)
+
+def _points_in_polygon(points_xz, poly_xz):
+    poly = poly_xz.astype(np.float32)
+    keep = []
+    for p in points_xz:
+        if cv2.pointPolygonTest(poly, (float(p[0]), float(p[1])), False) >= 0:
+            keep.append(p)
+    return np.asarray(keep, dtype=np.float32)
+
 def create_constrained_flat_mesh(points_2d, y_level, contour_2d):
     if len(points_2d) < 3:
         return o3d.geometry.TriangleMesh()
@@ -178,6 +215,7 @@ def create_constrained_flat_mesh(points_2d, y_level, contour_2d):
 # ------------------------------
 # 높이 추정 유틸 (PKL에서 y 사용)
 # ------------------------------
+
 def _collect_y_from_pkl_in_contour(pkl_path, contour_px, img_height, min_pts=50):
     d = load_pixel_to_points_mapping(pkl_path)
     ys = []
@@ -187,7 +225,6 @@ def _collect_y_from_pkl_in_contour(pkl_path, contour_px, img_height, min_pts=50)
         if parsed is None:
             continue
         px, py = parsed
-        # 컨투어는 픽셀좌표계 기준. y-flip 없이 그대로.
         inside = cv2.pointPolygonTest(contour_np, (float(px), float(py)), False)
         if inside >= 0:
             arr = np.asarray(pts, dtype=np.float32)
@@ -195,19 +232,15 @@ def _collect_y_from_pkl_in_contour(pkl_path, contour_px, img_height, min_pts=50)
                 ys.extend(arr[:, 1].tolist())
     ys = np.asarray(ys, dtype=np.float32)
     if ys.size < min_pts:
-        return None  # 충분치 않음
+        return None
     return ys
 
 def estimate_height_from_pkl(pkl_path, floor_y_level, contour_px=None, img_height=None,
                              percentile=98.0, min_height=1.0, max_height=50.0):
-    """컨투어 내부 픽셀에 해당하는 PKL y들로 높이를 추정. 부족하면 전체 PKL 기반으로 fallback.
-    height = clamp(percentile(y) - floor_y_level).
-    """
     ys = None
     if contour_px is not None:
         ys = _collect_y_from_pkl_in_contour(pkl_path, contour_px, img_height)
     if ys is None or ys.size == 0:
-        # fallback: 전체 PKL
         d = load_pixel_to_points_mapping(pkl_path)
         y_all = []
         for pts in d.values():
@@ -225,10 +258,11 @@ def estimate_height_from_pkl(pkl_path, floor_y_level, contour_px=None, img_heigh
 # ------------------------------
 # Poisson from PCD (floor)
 # ------------------------------
+
 def poisson_mesh_from_pcd(
     input_pcd_path,
     output_mesh_path,
-    normal_mode="z",
+    normal_mode="y",
     depth=9,
     density_quantile=0.01,
     normal_radius=0.02,
@@ -268,12 +302,10 @@ def poisson_mesh_from_pcd(
 # ------------------------------
 # 메인
 # ------------------------------
+
 def main():
     z_fighting_offset = 0.001
 
-    # 카테고리 설정: height_strategy 를 지정 가능
-    # - 'fixed': 고정 높이 사용 (height)
-    # - 'pkl_percentile': PKL 기반 퍼센타일로 컨투어별 높이 추정 (percentile/min_height/max_height)
     categories = [
         {
             "name": "wall",
@@ -283,7 +315,10 @@ def main():
             "height_strategy": "pkl_percentile",
             "percentile": 98.0,
             "min_height": 2.0,
-            "max_height": 50.0,
+            "max_height": 10.0,
+            # ★ 너비(폭) 축소 비율: 0.6이면 폭 60%로 축소 (길이 유지)
+            "target_width": 0.15,
+            # 또는 절대 폭 지정: "target_width": 0.15,
         },
         {
             "name": "material",
@@ -322,7 +357,7 @@ def main():
     else:
         print("[WARNING] Floor mesh failed; base at Y=0.")
 
-    # 각 카테고리별로 독립 처리 + 자체 유사변환 추정 (픽셀->월드 xz)
+    # 각 카테고리별 처리
     category_meshes = []
 
     for cat in categories:
@@ -335,47 +370,56 @@ def main():
             continue
         img_height_top = mask.shape[0]
 
-        # --- 1) 이 카테고리의 PKL만으로 픽셀->월드 2D affine 추정 ---
+        # 1) 픽셀->월드 2D affine 추정
         src_px, dst_w = build_correspondences_from_pkl(cat["pkl_path"], img_height_top, sample_every=10, max_points=30000)
         M, inliers = estimate_affine_partial_2d(src_px, dst_w, ransac_thresh=0.5)
         if M is None:
             print(f"[ERROR] Affine estimation failed for {name}. Skipped.")
             continue
 
-        # --- 2) 카테고리별 윤곽/채움 픽셀 ---
+        # 2) 윤곽/채움 픽셀
         contour_px_list = extract_corners_from_mask(mask, epsilon_ratio=0.0)
         if not contour_px_list:
             print(f"[WARNING] No contours for {name}. Skipped.")
             continue
         filled_pixels = extract_filled_pixels_from_mask(mask)
+        if len(filled_pixels) == 0:
+            print(f"[WARNING] No filled pixels for {name}. Skipped.")
+            continue
 
-        # --- 3) world 좌표 변환 (affine 적용) ---
+        # 3) world 좌표 변환
         all_contours_world = []
         for i, contour_px in enumerate(contour_px_list):
-            if len(contour_px) == 0:
-                continue
             contour_px_arr = np.asarray(contour_px, dtype=np.float32)
             contour_world = apply_affine_to_pixels(M, contour_px_arr, img_height_top)
             all_contours_world.append(contour_world)
             print(f"  {name} contour {i+1}: {len(contour_px)} points")
 
-        if len(filled_pixels) == 0:
-            print(f"[WARNING] No filled pixels for {name}. Skipped.")
-            continue
         filled_px_arr = np.asarray(filled_pixels, dtype=np.float32)
-        filled_points_world = apply_affine_to_pixels(M, filled_px_arr, img_height_top)
-        points_2d = filled_points_world  # (x,z)
+        filled_points_world = apply_affine_to_pixels(M, filled_px_arr, img_height_top)  # (x,z)
 
-        print(f"[INFO] Creating {name} meshes using Delaunay + contour mask ...")
+        print(f"[INFO] Creating {name} meshes (Delaunay + contour mask) ...")
         cat_mesh_accum = o3d.geometry.TriangleMesh()
 
-        # 컨투어별 가변 높이로 생성
+        # 4) 컨투어별 메쉬 생성
         for i, (contour_px, contour_world) in enumerate(zip(contour_px_list, all_contours_world), start=1):
+            cw = contour_world.copy()
+            # --- 폭(너비) 축소: 벽만 적용 ---
+            if name == "wall":
+                s = float(cat.get("target_width", 1.15))
+                tgt = cat.get("target_width", None)
+                cw = shrink_polygon_width_pca(cw, scale=s, target_width=tgt)
+
+            # 로컬 포인트만 사용해 재삼각화 (외부 포인트로 인한 교차 제거)
+            local_pts = _points_in_polygon(filled_points_world, cw)
+            if len(local_pts) < 8:
+                # 너무 적으면 컨투어를 촘촘히 리샘플해서 대체 포인트로 사용
+                local_pts = resample_contour(cw, num_points=max(32, len(cw)*4))
+
             # --- 높이 결정 ---
             if cat.get("height_strategy", "fixed") == "fixed":
-                fixed_h = float(cat.get("height", 10.0))
-                height = fixed_h
-            else:  # 'pkl_percentile'
+                height = float(cat.get("height", 10.0))
+            else:
                 height = estimate_height_from_pkl(
                     cat["pkl_path"],
                     floor_y_level,
@@ -387,41 +431,33 @@ def main():
                 )
             print(f"    -> contour {i} height = {height:.3f}")
 
-            # --- base/top mesh ---
+            # --- base/top mesh (로컬 포인트 + 축소 컨투어)
             try:
-                base_mesh = create_constrained_flat_mesh(points_2d, floor_y_level + z_fighting_offset, contour_world)
-                top_mesh  = create_constrained_flat_mesh(points_2d, floor_y_level + height + z_fighting_offset, contour_world)
+                base_mesh = create_constrained_flat_mesh(local_pts, floor_y_level + z_fighting_offset, cw)
+                top_mesh  = create_constrained_flat_mesh(local_pts, floor_y_level + height + z_fighting_offset, cw)
             except Exception as e:
                 print(f"  [ERROR] {name} contour {i}: {e}")
                 continue
 
-            # --- side extrude (개별 높이) ---
-            n = len(contour_world)
+            # --- side extrude (개별 높이)
+            n = len(cw)
             if n >= 3:
-                extruded_top_outline_3d = np.column_stack([
-                    contour_world[:, 0],
-                    np.full(n, floor_y_level + height + z_fighting_offset),
-                    contour_world[:, 1]
-                ])
-                extruded_base_outline_3d = np.column_stack([
-                    contour_world[:, 0],
-                    np.full(n, floor_y_level + z_fighting_offset),
-                    contour_world[:, 1]
-                ])
-                side_vertices = np.vstack([extruded_base_outline_3d, extruded_top_outline_3d])
+                top_outline_3d = np.column_stack([cw[:, 0], np.full(n, floor_y_level + height + z_fighting_offset), cw[:, 1]])
+                base_outline_3d = np.column_stack([cw[:, 0], np.full(n, floor_y_level + z_fighting_offset), cw[:, 1]])
+                side_vertices = np.vstack([base_outline_3d, top_outline_3d])
                 side_triangles = []
                 for j in range(n):
                     side_triangles.append([j, (j + 1) % n, (j + 1) % n + n])
                     side_triangles.append([j, (j + 1) % n + n, j + n])
                 side_mesh = o3d.geometry.TriangleMesh()
                 side_mesh.vertices = o3d.utility.Vector3dVector(side_vertices)
-                side_mesh.triangles = o3d.utility.Vector3iVector(side_triangles)
+                side_mesh.triangles = o3d.utility.Vector3iVector(np.asarray(side_triangles, dtype=np.int32))
                 side_mesh.compute_vertex_normals()
             else:
                 side_mesh = o3d.geometry.TriangleMesh()
                 print(f"  [WARNING] {name} contour {i}: Too few points ({n}) for sides")
 
-            # --- 합치기 ---
+            # 합치기
             contour_mesh = base_mesh + top_mesh + side_mesh
             cat_mesh_accum += contour_mesh
 
@@ -452,7 +488,6 @@ def main():
         print(f"[SUCCESS] Merged mesh saved: {merged_output} ({len(final_mesh.vertices)} vertices, {len(final_mesh.triangles)} triangles)")
         o3d.visualization.draw_geometries([final_mesh], mesh_show_back_face=True)
     else:
-        # 시각화 폴백
         if merged_mesh is not None:
             o3d.visualization.draw_geometries([merged_mesh], mesh_show_back_face=True)
         elif mesh_floor is not None:

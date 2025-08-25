@@ -1,0 +1,9 @@
+@echo off
+echo 3D Point Cloud Processing GUI 실행 중...
+echo.
+echo 필요한 패키지 설치 중...
+pip install -r requirements.txt
+echo.
+echo GUI 실행 중...
+python script/gui_runner.py
+pause

@@ -40,7 +40,7 @@ def extract_outline(
                 pcd = tmp
                 break
             voxel *= 1.5
-        print(f"[INFO] 다운샘플: {len(pcd.points)} pts (voxel≈{voxel:.4f})")
+        print(f"[INFO] 다운샘플: {len(pcd.points)} pts (voxel={voxel:.4f})")
 
     pts = np.asarray(pcd.points)
     proj = pts[:, dim]  # Nx2

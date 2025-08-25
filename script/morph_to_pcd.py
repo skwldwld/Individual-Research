@@ -38,9 +38,9 @@ def _save_pcd(path, pcd, label=""):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     ok = o3d.io.write_point_cloud(path, pcd)
     if ok:
-        print(f"✅ [{label}] PCD 저장: {path}  (points={len(pcd.points)})")
+        print(f"[{label}] PCD 저장: {path}  (points={len(pcd.points)})")
     else:
-        print(f"❌ [{label}] PCD 저장 실패: {path}")
+        print(f"[{label}] PCD 저장 실패: {path}")
     return ok
 
 # ------------------------------
@@ -49,19 +49,23 @@ def _save_pcd(path, pcd, label=""):
 def img_to_pcd(morph_img_path, pixel_map_path, output_pcd_path, label="", color=None):
     morph_img = cv2.imread(morph_img_path, cv2.IMREAD_GRAYSCALE)
     if morph_img is None:
-        print(f"{label} 이미지 로드 실패: {morph_img_path}")
+        print(f"[{label}] 이미지 로드 실패: {morph_img_path}")
         return False, None
-    print(f"{label} 이미지 크기: {morph_img.shape[1]} x {morph_img.shape[0]}")
+    print(f"[{label}] 이미지 크기: {morph_img.shape[1]} x {morph_img.shape[0]}")
 
     if not os.path.exists(pixel_map_path):
-        print(f"{label} 매핑 테이블 없음: {pixel_map_path}")
+        print(f"[{label}] 매핑 테이블 없음: {pixel_map_path}")
         return False, None
 
     with open(pixel_map_path, "rb") as f:
         pixel_to_points = pickle.load(f)
-    print(f"{label} 매핑 테이블 로드 완료: {len(pixel_to_points)}개")
+    print(f"[{label}] 매핑 테이블 로드 완료: {len(pixel_to_points)}개")
 
     white_pixels = np.argwhere(morph_img == 255)
+
+    if white_pixels.size == 0:
+        print(f"[{label}] 흰 픽셀이 없습니다. 변환할 포인트가 없습니다.")
+        return False, None
 
     points_3d = []
     mapped_pixel_count = 0
@@ -75,11 +79,11 @@ def img_to_pcd(morph_img_path, pixel_map_path, output_pcd_path, label="", color=
             unmapped_pixel_count += 1
 
     if not points_3d:
-        print(f"{label} 3D 포인트 없음")
+        print(f"[{label}] 3D 포인트 없음")
         return False, None
 
     points_3d = np.unique(np.array(points_3d), axis=0)
-    print(f"{label} 총 3D 포인트 수: {len(points_3d)} (매핑된 픽셀: {mapped_pixel_count}, 매핑X: {unmapped_pixel_count})")
+    print(f"[{label}] 총 3D 포인트 수: {len(points_3d)} (매핑된 픽셀: {mapped_pixel_count}, 매핑X: {unmapped_pixel_count})")
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points_3d)
@@ -95,7 +99,6 @@ def img_to_pcd(morph_img_path, pixel_map_path, output_pcd_path, label="", color=
         ok = _save_pcd(output_pcd_path, pcd, label=label)
         return ok, pcd
     else:
-        print(f"✅ {label} PCD 생성 완료 (파일 저장 안 함).")
         return True, pcd
     
 def build_top_x_to_z_lookup(topview_pkl, min_x_top, min_z_top, scale_top, img_height_top):
@@ -125,7 +128,7 @@ def build_top_x_to_z_lookup(topview_pkl, min_x_top, min_z_top, scale_top, img_he
 def sideview_to_3d_pcd(
     morph_img_path, sideview_pkl, topview_pkl, output_pcd_path,
     min_x_side, min_y_side, scale_side, img_height_side,
-    min_x_top, min_z_top, scale_top, img_height_top,
+    min_x_top,  min_z_top,  scale_top,  img_height_top,
     color=[0, 0, 1],
     stride=1  # 성능튜닝: 1=모두, 2/3/4=샘플링
 ):
@@ -189,7 +192,7 @@ def sideview_to_3d_pcd(
         ok = _save_pcd(output_pcd_path, pcd, label="sideview")
         return ok, pcd
     else:
-        print(f"✅ [sideview] PCD 생성 완료 (파일 저장 안 함).")
+        print(f"[sideview] PCD 생성 완료 (파일 저장 안 함).")
         return True, pcd
 
 
@@ -306,7 +309,7 @@ def main():
                     _save_pcd(topview_out_pcd, filtered_topview_pcd, label=f"topview/{category}")
                     created_pcds.append(topview_out_pcd)
                 else:
-                    print(f"❌ [topview/{category}] 필터 후 남은 점이 없습니다.")
+                    print(f"[topview/{category}] 필터 후 남은 점이 없습니다.")
 
                 shifted_sideview_pcd = _voxel_down(shifted_sideview_pcd, VOXEL_SIZE)
                 _save_pcd(sideview_out_pcd, shifted_sideview_pcd, label=f"sideview/{category}")
